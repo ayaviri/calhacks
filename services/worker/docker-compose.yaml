@@ -1,0 +1,7 @@
+services:
+  amqp:
+    image: rabbitmq:latest
+    hostname: calhacks-rabbit
+    restart: always
+    ports:
+      - ${RABBIT_PORT}:${RABBIT_PORT}
