@@ -1,5 +1,3 @@
-
-
 import tensorflow as tf
 from tensorflow.keras import layers, models
 import numpy as np
@@ -32,15 +30,23 @@ model = tf.keras.applications.MobileNetV2(
 
 model_id = id(model)
 num_layers = len(model.layers)
+start_layer = 0
+end_layer = len(model.layers)
 
 class ModelShard:
     def __init__(self, model_id, num_layers, ground_truth):
         self.model_id = model_id
         self.num_layers = num_layers
-        self.ground_truth = ground_truth  
+        self.ground_truth = ground_truth 
+        self.start_layer = start_layer
+        self.end_layer = end_layer
 
     def __repr__(self):
-        return f"ModelShard(model_id={self.model_id}, num_layers={self.num_layers}, ground_truth_shape={self.ground_truth.shape})"
+        return (
+            f"ModelShard(model_id={self.model_id}, num_layers={self.num_layers}, "
+            f"ground_truth_shape={self.ground_truth.shape}, "
+            f"start_layer={self.start_layer}, end_layer={self.end_layer})"
+        )
 
 
 model_shard = ModelShard(model_id, num_layers, y_test)
