@@ -18,10 +18,14 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=32, shuffle=True,
 testset = torchvision.datasets.FashionMNIST(root='./data', train=False, download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=32, shuffle=False, num_workers=2)
 
+class_labels = trainset.classes
+
 model = resnet18(weights=ResNet18_Weights.DEFAULT)
 model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
 model.fc = torch.nn.Linear(model.fc.in_features, 10)  
 model = model.to(device)
+
+model.eval()
 
 # get_model_info: Model -> String Number
 def get_model_info(model):
@@ -47,4 +51,16 @@ print("TorchScript model saved as 'traced_resnet_model.pt'")
 
 scale = 1 / (0.5 * 255.0)
 bias = -1.0  
- 
+
+mlmodel = ct.convert(
+    "traced_resnet_model.pt",
+    inputs=[ct.ImageType(
+        name="input_1", 
+        shape=dummy_input.shape, 
+        scale=scale, 
+        bias=[bias],
+        color_layout='G',
+        channel_first=True
+    )],
+    classifier_config=ct.ClassifierConfig(class_labels)
+)
