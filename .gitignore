@@ -1,1 +1,2 @@
 /workers/venv
+/services/app_worker/node_modules
