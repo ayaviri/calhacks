@@ -51,14 +51,3 @@ class ModelShard:
 
 model_shard = ModelShard(model_id, num_layers, y_test)
 print(model_shard) 
-
-# modular api
-#model.export('saved_model')
-
-#converter = tf.lite.TFLiteConverter.from_saved_model('saved_model')
-#tflite_model = converter.convert()
-
-
-#with open('mobilenetv2.tflite', 'wb') as f:
-    #f.write(tflite_model)
-#print("TensorFlow Lite model saved as 'mobilenetv2.tflite'")
