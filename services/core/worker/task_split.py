@@ -1,24 +1,59 @@
-import pika
-# TODO: I can't seem to import this, so I'll have to redefine it here
-# from server.mq import connect_to_rabbitmq_server
+import time
+import requests
+from typing import Any
+from pydantic import BaseModel, NonNegativeInt
+from database.schemas import TaskTable
+from worker.utils import connect_to_rabbitmq_server, create_db_session_factory, Timer
 
 
-def connect_to_rabbitmq_server():
-    connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
+# TODO: The information necessary for a worker to independently complete a
+# portion of the original task
+class Subtask(BaseModel):
+    # Represents the ID of the task from which this one is derived, shared by
+    # all subtasks of a given task
+    task_id: str
+    # Represents the number of subtasks the original task was divided into
+    subtask_count: NonNegativeInt
 
-    return connection.channel()
+
+# The message schema received by this worker, represents a model finetuning task
+class TaskSplitMessage(BaseModel):
+    model_file_contents: str
+    dataset_file_contents: str
+    task_id: str
 
 
-# Called when a message is received, _body_ parameters is a JSON string that
-# contains the message body
-def split_task(channel, method, properties, body):
-    # 1) Deserialise message, perform work upon message receipt
-    # 2) Serialise result, hit POST /result endpoint in core
-    print(f"received: {body}")
+# Called when a task is submitted in by the core server in the form of a message.
+# Message body is contained in the _body_ parameter as a byte array
+def split_task(channel, method, properties, body: bytes):
+    with Timer("deserialising message body from json"):
+        message = TaskSplitMessage.model_validate_json(str(body))
+
+    # 2) TODO: Split into subtasks according to available workers
+    with Timer("splitting into subtasks according to available workers"):
+        available_workers = 4
+        subtasks = [Subtask() for _ in range(available_workers)]
+
+    # NOTE: Ideally, there is some retry mechanism here since most of the
+    # work has already been done in splitting the task
+    with Timer("writing subtask count to postgres"):
+        with Session.begin() as session:
+            TaskTable.set_subtask_count(
+                session, message.task_id, subtask_count=available_workers
+            )
+
+    with Timer("serialising subtasks into json"):
+        serialised_subtasks: list[str] = [s.model_dump_json() for s in subtasks]
+
+    with Timer("publishing each subtask to queue"):
+        for message in serialised_subtasks:
+            channel.basic_publish(exchange="", routing_key="subtask", body=message)
 
 
 def main():
+    global Session
     rabbitmq_channel = connect_to_rabbitmq_server()
+    Session = create_db_session_factory()
     rabbitmq_channel.basic_consume(queue="task_split", on_message_callback=split_task)
     rabbitmq_channel.start_consuming()
 

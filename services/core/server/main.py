@@ -1,12 +1,18 @@
+import redis.asyncio as aioredis
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-# from server.schemas import PostResultRequestBody
+from server.schemas import (
+    PostResultRequestBody,
+    TaskSplitMessage,
+    SubtaskResult,
+    ResultAggregationMessage,
+)
 
 from database.schemas import TaskTable
 from utils.timer import Timer
-from server.database import create_db_session_factory
-from server.utils import abort_on_failure
-from server.mq import connect_to_rabbitmq_server
+from web_server.database import create_db_session_factory
+from web_server.utils import abort_on_failure
+from web_server.mq import connect_to_rabbitmq_server
 
 app = FastAPI()
 origins = ["*"]
@@ -28,9 +34,11 @@ def health():
 def startup():
     global rabbitmq_channel
     global Session
+    global redis
     rabbitmq_channel = connect_to_rabbitmq_server()
     rabbitmq_channel.queue_declare(queue="task_split")
     Session = create_db_session_factory()
+    redis = aioredis.Redis()
 
 
 @app.on_event("shutdown")
@@ -53,14 +61,22 @@ async def submit_task(
     dataset: UploadFile = File(required=True),
 ):
     async def handler():
+        with Timer("reading file contents into memory"):
+            model_file_contents = await model.read()
+            dataset_file_contents = await dataset.read()
+
         with Timer("creating task in database"):
             with Session.begin() as session:
                 task_id: str = TaskTable.write_task(session)
 
         with Timer("sending files to task split queue"):
-            # TODO: Construct the task message
+            message = TaskSplitMessage(
+                model_file_contents=model_file_contents,
+                dataset_file_contents=dataset_file_contents,
+                task_id=task_id,
+            )
             rabbitmq_channel.basic_publish(
-                exchange="", routing_key="task_split", body="hello world"
+                exchange="", routing_key="task_split", body=message.model_dump_json()
             )
 
         return {"task_id": task_id}
@@ -68,11 +84,16 @@ async def submit_task(
     return await abort_on_failure(handler)
 
 
-# @app.get("/task/{task_id}")
-# def get_task_state(task_id: str):
-#     # 1) Subscribe to result aggregation message queue
-#     # 2) Upon message receipt, respond with model file download URL
-#     return {"calhacks": task_id}
+@app.get("/task/{task_id}")
+async def get_task_state(task_id: str):
+    def respond_with_result(channel, method, properties, body: bytes):
+        # NOTE: This assumes that the body is already a JSON formatted string
+        return JSONResponse(content=str(bytes))
+
+    rabbitmq_channel.basic_consume(
+        queue="result", on_message_callback=respond_with_result
+    )
+    rabbitmq_channel.start_consuming()
 
 
 #  _____ ___  ____   __        _____  ____  _  _______ ____
@@ -83,9 +104,47 @@ async def submit_task(
 #
 
 
-# @app.post("/result")
-# def post_subtask_result(r: PostResultRequestBody):
-#     # 1) Write subtask result to database
-#     # 2) If all subtask results are available, aggregate them asynchronously, write aggregation to DB
-#     # 3) (In core worker) Post message of result aggregation
-#     return {"calhacks": "hooray !"}
+@app.post("/result")
+async def post_subtask_result(r: PostResultRequestBody):
+    async def handler():
+        completed_subtasks_key = f"completed_subtasks_{r.task_id}"
+
+        with Timer("serialising request body into json"):
+            serialised_subtask: str = r.model_dump_json()
+
+        with Timer("writing json serialised subtask result into redis set"):
+            await redis.sadd(completed_subtasks_key, serialised_subtask)
+
+        with Timer("reading all of the subtasks results in the redis set"):
+            serialised_subtasks: list[str] = [
+                str(subtask) for subtask in await redis.smembers(completed_subtasks_key)
+            ]
+
+        if len(serialised_subtasks) == r.subtask_count:
+            with Timer("deserialising subtasks pulled from redis"):
+                subtasks = [
+                    PostResultRequestBody.model_validate_json(ss)
+                    for ss in serialised_subtasks
+                ]
+
+            with Timer("constructing message to for result aggregation"):
+                message = ResultAggregationMessage(
+                    subtask_results=[
+                        SubtaskResult(
+                            output_tensor=s.output_tensor, task_num=s.task_num
+                        )
+                        for s in subtasks
+                    ]
+                )
+
+            with Timer("publishing message to aggregate subtask results asychronously"):
+                rabbitmq_channel.basic_publish(
+                    exchange="",
+                    routing_key="result_aggregation",
+                    body=message.model_dump_json(),
+                )
+            return "results now aggregating"
+
+        return "subtask results not fully available yet"
+
+    return await abort_on_failure(handler)
