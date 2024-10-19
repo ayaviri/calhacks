@@ -117,6 +117,7 @@ class ModelShard:
 shard1_info = ModelShard(model_id, num_layers, y_train, start_layer_shard1, end_layer_shard1)
 print("Shard 1 Info:", shard1_info)
 
+
 shard2_info = ModelShard(model_id, num_layers, y_train, start_layer_shard2, end_layer_shard2)
 print("Shard 2 Info:", shard2_info)
 
