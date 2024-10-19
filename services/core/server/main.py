@@ -1,5 +1,5 @@
 import redis.asyncio as aioredis
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from server.schemas import (
     PostResultRequestBody,
@@ -58,12 +58,11 @@ def shutdown():
 @app.post("/task")
 async def submit_task(
     model: UploadFile = File(required=True),
-    dataset: UploadFile = File(required=True),
+    dataset_name: str = Form(required=True)
 ):
     async def handler():
         with Timer("reading file contents into memory"):
             model_file_contents = await model.read()
-            dataset_file_contents = await dataset.read()
 
         with Timer("creating task in database"):
             with Session.begin() as session:
@@ -72,7 +71,7 @@ async def submit_task(
         with Timer("sending files to task split queue"):
             message = TaskSplitMessage(
                 model_file_contents=model_file_contents,
-                dataset_file_contents=dataset_file_contents,
+                dataset_name=dataset_name,
                 task_id=task_id,
             )
             rabbitmq_channel.basic_publish(

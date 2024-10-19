@@ -1,7 +1,7 @@
 import time
 import requests
 from typing import Any
-from pydantic import BaseModel, NonNegativeInt
+from pydantic import BaseModel, NonNegativeInt, PositiveInt
 from database.schemas import TaskTable
 from worker.utils import connect_to_rabbitmq_server, create_db_session_factory, Timer
 
@@ -9,17 +9,24 @@ from worker.utils import connect_to_rabbitmq_server, create_db_session_factory, 
 # TODO: The information necessary for a worker to independently complete a
 # portion of the original task
 class Subtask(BaseModel):
+    model_file_contents: str
+    dataset_name: str
     # Represents the ID of the task from which this one is derived, shared by
     # all subtasks of a given task
     task_id: str
+    # Represents the order in which this subtask belongs in the collection of
+    # subtasks
+    task_num: NonNegativeInt
     # Represents the number of subtasks the original task was divided into
-    subtask_count: NonNegativeInt
+    subtask_count: PositiveInt
 
 
 # The message schema received by this worker, represents a model finetuning task
 class TaskSplitMessage(BaseModel):
+    # A .keras file
     model_file_contents: str
-    dataset_file_contents: str
+    # The name of a dataset provided by tensorflow
+    dataset_name: str
     task_id: str
 
 
@@ -32,7 +39,15 @@ def split_task(channel, method, properties, body: bytes):
     # 2) TODO: Split into subtasks according to available workers
     with Timer("splitting into subtasks according to available workers"):
         available_workers = 4
-        subtasks = [Subtask() for _ in range(available_workers)]
+        subtasks = [
+            Subtask(
+                model_file_contents=message.model_file_contents
+                dataset_name=message.dataset_name,
+                task_id=message.task_id,
+                subtask_count=available_workers
+            ) 
+            for _ in range(available_workers)
+        ]
 
     # NOTE: Ideally, there is some retry mechanism here since most of the
     # work has already been done in splitting the task
