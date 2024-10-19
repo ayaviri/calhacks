@@ -3,6 +3,8 @@ import axios from 'axios';
 
 const model = useState('model', () => null);
 const dataset = useState('dataset', () => null);
+const UPLOAD_FILES_ENDPOINT = "https://example.com/api/upload";
+const DOWNLOAD_MODEL_ENDPOINT = (taskId) => `http://localhost:8000/job/${taskId}`;
 
 function modelChange(e) {
   model.value = e.target.files[0];
@@ -12,15 +14,34 @@ function datasetChange(e) {
 }
 
 const submitForm = async () => {
+  // form the body
   const form = new FormData();
   form.append('model', model.value); 
   form.append('dataset', dataset.value); 
 
-  const response = await axios.post('https://example.com/api/upload', form, {
+  // get task
+  const taskResponse = await axios.post(UPLOAD_FILES_ENDPOINT, form, {
     headers: {
       'Content-Type': 'multipart/form-data', 
     },
   });
+  const taskId = (await response.json())["task_id"]
+
+  // listen for the download URL, and download it once received
+  const listenSource = new EventSource(DOWNLOAD_MODEL_ENDPOINT(taskId))
+  listenSource.onmessage = (event) => {
+    const url = JSON.parse(event.data).url;
+
+    // auto download
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = "new-model.pt";
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+
+    listenSource.close()
+  }
 };
 </script>
 
