@@ -24,7 +24,7 @@ model = resnet18(weights=ResNet18_Weights.DEFAULT)
 model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
 model.fc = torch.nn.Linear(model.fc.in_features, 10)  
 model = model.to(device)
-
+ 
 model.eval()
 
 # get_model_info: Model -> String Number
