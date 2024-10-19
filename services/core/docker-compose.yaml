@@ -1,0 +1,23 @@
+services:
+  amqp:
+    image: rabbitmq:latest
+    hostname: calhacks-rabbit
+    restart: always
+    ports:
+      - ${RABBIT_PORT}:${RABBIT_PORT}
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_AUTH_METHOD=md5
+    ports:
+      - ${PGPORT}:${PGPORT}
+    volumes:
+      - calhacks-pg:/var/lib/postgresql/data
+
+volumes:
+  calhacks-pg:
+    driver: local
