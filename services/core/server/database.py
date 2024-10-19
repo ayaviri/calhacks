@@ -8,5 +8,9 @@ pg_host = os.environ.get("PGHOST")
 pg_port = os.environ.get("PGPORT")
 pg_db = os.environ.get("POSTGRES_DB")
 db_url = f"postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
-engine = create_engine(db_url)
-Session = sessionmaker(autocommit=False, autoflush=True, bind=engine)
+
+
+def create_db_session_factory():
+    engine = create_engine(db_url)
+
+    return sessionmaker(autocommit=False, autoflush=True, bind=engine)

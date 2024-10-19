@@ -1,1 +1,1 @@
-# calhacks_core
+# the core web server

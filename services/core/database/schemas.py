@@ -1,4 +1,4 @@
-# TODO: Need table for tasks
+import uuid
 from sqlalchemy import Column, Integer, String, DateTime, Text, and_, desc
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
@@ -17,5 +17,8 @@ class TaskTable:
     pass
 
     @staticmethod
-    def writeTask(session):
-        pass
+    def write_task(session) -> str:
+        task_id = str(uuid.uuid4())
+        row = TaskRow(id=task_id)
+        session.add(row)
+        return task_id
