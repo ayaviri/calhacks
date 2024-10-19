@@ -1,79 +1,124 @@
-import os
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.distributed as dist
-import torch.multiprocessing as mp
-from torchvision.models import resnet18
-import torchvision
-import torchvision.transforms as transforms
+import tensorflow as tf
+import numpy as np
 
-# fill in with .env file
-# def setup(rank, world_size):
-    # os.environ['MASTER_ADDR'] = 'localhost'
-    # os.environ['MASTER_PORT'] = '12355'
-    # dist.init_process_group("gloo", rank=rank, world_size=world_size)
+fashion_mnist = tf.keras.datasets.fashion_mnist
+(x_train, y_train), (x_test, y_test) = fashion_mnist.load_data()
 
-def cleanup():
-    dist.destroy_process_group()
+def preprocess_images(images):
+    images = np.expand_dims(images, axis=-1)
+    images = tf.image.resize(images, [224, 224]).numpy()
+    images = images / 255.0
+    return images
 
-def train(rank, world_size):
-    setup(rank, world_size)
+x_train = preprocess_images(x_train)
+x_test = preprocess_images(x_test)
 
-    if not torch.backends.mps.is_available():
-        print(f"MPS not available on device {rank}. Using CPU instead.")
-        device = torch.device("cpu")
-    else:
-        device = torch.device("mps")
+x_train_rgb = np.repeat(x_train, 3, axis=-1)
+x_test_rgb = np.repeat(x_test, 3, axis=-1)
 
-    model = resnet18(num_classes=10)
-    model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-    model = model.to(device)
+batch_size = 32
+train_dataset = tf.data.Dataset.from_tensor_slices((x_train_rgb, y_train))
+train_dataset = train_dataset.shuffle(buffer_size=1024).batch(batch_size)
 
-    model = nn.parallel.DistributedDataParallel(model)
+base_model = tf.keras.applications.MobileNetV2(
+    input_shape=(224, 224, 3),
+    include_top=True,
+    weights='imagenet'
+)
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+start_layer_shard1 = 0
+end_layer_shard1 = 77 
 
-    transform = transforms.Compose([
-        transforms.Resize(224),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))
-    ])
+start_layer_shard2 = 78
+end_layer_shard2 = len(base_model.layers)
 
-    trainset = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform)
-    train_sampler = torch.utils.data.distributed.DistributedSampler(trainset, num_replicas=world_size, rank=rank)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=32, sampler=train_sampler, num_workers=2)
+layers = base_model.layers
 
-    num_epochs = 5
-    for epoch in range(num_epochs):
-        train_sampler.set_epoch(epoch)
-        running_loss = 0.0
-        for i, data in enumerate(trainloader, 0):
-            inputs, labels = data[0].to(device), data[1].to(device)
+shard1_layers = layers[start_layer_shard1:end_layer_shard1]
 
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+shard2_layers = layers[start_layer_shard2:end_layer_shard2]
 
-            running_loss += loss.item()
-            if i % 200 == 199:
-                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 200:.3f}')
-                running_loss = 0.0
+def build_shard(layers_list, input_shape=None):
+    inputs = tf.keras.Input(shape=input_shape) if input_shape else layers_list[0].input
+    x = inputs
+    for layer in layers_list:
+        x = layer(x)
+    model = tf.keras.Model(inputs=inputs, outputs=x)
+    return model
 
-    print('Finished Training')
+input_shape = (224, 224, 3)
+shard1_model = build_shard(shard1_layers, input_shape=input_shape)
+shard2_model = build_shard(shard2_layers)
 
-    if rank == 0:
-        torch.save(model.module.state_dict(), 'fashion_mnist_resnet18_distributed_mps.pt')
-        print("Model saved as 'fashion_mnist_resnet18_distributed_mps.pt'")
+for layer in shard1_model.layers:
+    layer.trainable = True
 
-    cleanup()
+for layer in shard2_model.layers:
+    layer.trainable = True
 
-def main():
-    world_size = torch.backends.mps.device_count()  
-    mp.spawn(train, args=(world_size,), nprocs=world_size, join=True)
+loss_fn = tf.keras.losses.SparseCategoricalCrossentropy()
+optimizer = tf.keras.optimizers.Adam()
 
-if __name__ == "__main__":
-    main()
+epochs = 5
+
+for epoch in range(epochs):
+    print(f"Epoch {epoch+1}/{epochs}")
+    for step, (x_batch, y_batch) in enumerate(train_dataset):
+        with tf.GradientTape(persistent=True) as tape:
+
+            x_shard1 = shard1_model(x_batch, training=True)
+            
+            logits = shard2_model(x_shard1, training=True)
+            
+            loss_value = loss_fn(y_batch, logits)
+        
+        gradients_shard2 = tape.gradient(loss_value, shard2_model.trainable_variables)
+        gradients_shard1 = tape.gradient(loss_value, shard1_model.trainable_variables)
+        
+        optimizer.apply_gradients(zip(gradients_shard1, shard1_model.trainable_variables))
+        optimizer.apply_gradients(zip(gradients_shard2, shard2_model.trainable_variables))
+        
+        if step % 100 == 0:
+            print(f"Step {step}, Loss: {loss_value.numpy():.4f}")
+    
+    print(f"Epoch {epoch+1} completed.")
+
+inputs = tf.keras.Input(shape=(224, 224, 3))
+x = shard1_model(inputs)
+outputs = shard2_model(x)
+full_model = tf.keras.Model(inputs=inputs, outputs=outputs)
+
+test_dataset = tf.data.Dataset.from_tensor_slices((x_test_rgb, y_test))
+test_dataset = test_dataset.batch(batch_size)
+
+accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
+
+for x_batch, y_batch in test_dataset:
+    logits = full_model(x_batch, training=False)
+    accuracy.update_state(y_batch, logits)
+
+print(f"Test Accuracy: {accuracy.result().numpy():.4f}")
+
+model_id = id(full_model)
+num_layers = len(full_model.layers)
+
+class ModelShard:
+    def __init__(self, model_id, num_layers, ground_truth, start_layer, end_layer):
+        self.model_id = model_id
+        self.num_layers = num_layers
+        self.ground_truth = ground_truth
+        self.start_layer = start_layer
+        self.end_layer = end_layer
+
+    def __repr__(self):
+        return (f"ModelShard(model_id={self.model_id}, num_layers={self.num_layers}, "
+                f"start_layer={self.start_layer}, end_layer={self.end_layer})")
+
+shard1_info = ModelShard(model_id, num_layers, y_train, start_layer_shard1, end_layer_shard1)
+print("Shard 1 Info:", shard1_info)
+
+shard2_info = ModelShard(model_id, num_layers, y_train, start_layer_shard2, end_layer_shard2)
+print("Shard 2 Info:", shard2_info)
+
+full_model.save('trained_full_model')
+print("Fully trained model saved as 'trained_full_model'")
