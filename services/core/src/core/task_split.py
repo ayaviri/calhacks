@@ -20,9 +20,10 @@ def split_task(channel, method, properties, body: bytes):
     with Timer("deserialising message body from json"):
         message = TaskSplitMessage.model_validate_json(body.decode("utf-8"))
 
-    # 2) TODO: Split into subtasks according to available workers
+    # TODO: Ideally, the model splits are not hard coded in the worker but calculated
+    # here for the worker to then do
     with Timer("splitting into subtasks according to available workers"):
-        available_workers = 1
+        available_workers = 2
         subtasks = [
             SubtaskMessage(
                 encoded_model_file_contents=message.encoded_model_file_contents,

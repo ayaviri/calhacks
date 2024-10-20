@@ -1,4 +1,6 @@
 import base64
+import tempfile
+import tensorflow as tf
 from pydantic import BaseModel, NonNegativeInt
 from core.mq import connect_to_rabbitmq_server
 from core.utils import Timer
@@ -12,21 +14,35 @@ from core.schemas import (
 )
 
 
+def _get_model_shard(subtask_result):
+    temp_file = tempfile.NamedTemporaryFile()
+    temp_file.write(base64.b64decode(subtask_result.encoded_model_file_contents))
+
+    return tf.keras.models.load_model(temp_file.name)
+
+
+def _merge_models(first_subtask_result, second_subtask_result):
+    first_model_shard = _get_model_shard(first_subtask_result)
+    second_model_shard = _get_model_shard(second_subtask_result)
+    full_input = first_model_shard.input
+    intermediate_output = first_model_shard.output
+    full_output = second_model_shard(intermediate_output)
+    full_model = tf.keras.Model(inputs=full_input, outputs=full_output)
+
+    return full_model
+
+
 def aggregate_results(channel, method, properties, body: bytes):
     with Timer("deserialising message body from json"):
         message = ResultAggregationMessage.model_validate_json(body.decode("utf-8"))
 
-    # 2) TODO: Aggregate results
+    # TODO: Model merging is fixed to a subtask result pool of 2
     with Timer("aggregating result from each subtask into a single result"):
-        # 1) Decode model shards from base64 into byte array
-        # 2) Load model shards into memory
-        # 3) Merge shards using tensorflow
-        # 4) Export merged model to .keras
-        for index, subtask_result in enumerate(message.subtask_results):
-            with open(f"model{index}.keras", "wb") as file:
-                file.write(base64.b64decode(subtask_result.encoded_model_file_contents))
+        merged_model = _merge_models(*message.subtask_results)
 
     with Timer("pushing aggregated result to remote file server"):
+        # TODO: Push this to some sort of object storage ?
+        merged_model.save("merged.keras")
         result = ResultMessage(file_url_model="got the model")
 
     channel.basic_publish(
