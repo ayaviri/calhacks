@@ -2,18 +2,17 @@ import base64
 import redis.asyncio as aioredis
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
-from server.schemas import (
+
+from core.utils import Timer, abort_on_failure
+from core.database import create_db_session_factory
+from core.schemas import (
     PostResultRequestBody,
     TaskSplitMessage,
     SubtaskResult,
     ResultAggregationMessage,
+    TaskTable,
 )
-
-from database.schemas import TaskTable
-from utils.timer import Timer
-from server.database import create_db_session_factory
-from server.utils import abort_on_failure
-from server.mq import connect_to_rabbitmq_server
+from core.mq import connect_to_rabbitmq_server
 
 app = FastAPI()
 origins = ["*"]
@@ -90,7 +89,7 @@ async def submit_task(
 @app.get("/task/{task_id}")
 async def get_task_state(task_id: str):
     def respond_with_result(channel, method, properties, body: bytes):
-        # NOTE: This assumes that the body of the received message is 
+        # NOTE: This assumes that the body of the received message is
         # already a JSON formatted string
         return JSONResponse(content=str(bytes))
 
@@ -135,8 +134,8 @@ async def post_subtask_result(r: PostResultRequestBody):
                 message = ResultAggregationMessage(
                     subtask_results=[
                         SubtaskResult(
-                            encoded_model_file_contents=s.encoded_model_file_contents, 
-                            task_num=s.task_num
+                            encoded_model_file_contents=s.encoded_model_file_contents,
+                            task_num=s.task_num,
                         )
                         for s in subtasks
                     ]

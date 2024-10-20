@@ -27,9 +27,15 @@ license = {text = "MIT"}
 distribution = false
 
 [tool.pdm.scripts]
-server.cmd = "uvicorn server.main:app --reload"
+# server = { cmd = "uvicorn core.server:app --reload", env = {"PYTHONPATH" = "src"}, script = "dotenv"}
+server.cmd = "uvicorn core.server:app --reload"
 server.env_file = ".env"
-worker.cmd = "worker/task_split.py"
-worker.env_file = ".env"
+task_split_worker.cmd = "src/core/task_split.py"
+task_split_worker.env_file = ".env"
+result_aggregation_worker.cmd = "src/core/task_split.py"
+result_aggregation_worker.env_file = ".env"
 migrate.cmd = "alembic upgrade head"
 migrate.env_file = ".env"
+
+# [tool.pdm.scripts.dotenv]
+# cmd = "python -c 'from dotenv import load_dotenv; load_dotenv()'"
