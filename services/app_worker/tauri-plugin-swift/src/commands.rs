@@ -12,4 +12,12 @@ pub(crate) async fn ping<R: Runtime>(
     app.swift().ping(payload)
 }
 
+#[command]
+pub(crate) async fn graphics<R: Runtime>(
+    app: AppHandle<R>,
+    payload: PingRequest,
+) -> Result<PingResponse> {
+    app.swift().graphics(payload)
+}
+
 

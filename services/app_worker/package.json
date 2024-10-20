@@ -11,7 +11,10 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@tauri-apps/plugin-websocket": "^2.0.0",
+    "amqplib": "^0.10.4",
     "nuxt": "^3.13.2",
+    "stompjs": "^2.3.3",
     "vue": "latest",
     "vue-router": "latest"
   },
