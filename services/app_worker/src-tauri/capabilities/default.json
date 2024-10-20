@@ -9,6 +9,7 @@
     "core:default",
     "swift:allow-ping",
     "swift:allow-graphics",
-    "swift:default"
+    "swift:default",
+    "websocket:default"
   ]
 }
