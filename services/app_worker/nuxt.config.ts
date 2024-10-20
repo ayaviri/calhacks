@@ -6,7 +6,7 @@ export default defineNuxtConfig({
   // Enables the development server to be discoverable by other devices when running on iOS physical devices
   devServer: { 
     host: process.env.TAURI_DEV_HOST || 
-    // '172.20.10.7' ||
+    // '172.20.10.7'
     'localhost'
   },
   vite: {

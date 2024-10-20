@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "swift:allow-ping",
+    "swift:allow-graphics",
     "swift:default"
   ]
 }

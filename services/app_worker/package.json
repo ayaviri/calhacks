@@ -11,6 +11,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "amqplib": "^0.10.4",
     "nuxt": "^3.13.2",
     "vue": "latest",
     "vue-router": "latest"
