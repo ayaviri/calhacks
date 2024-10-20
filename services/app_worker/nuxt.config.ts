@@ -1,14 +1,24 @@
 export default defineNuxtConfig({
   // (optional) Enable the Nuxt devtools
   devtools: { enabled: true },
+  css: ['~/assets/css/main.css'],
+  postcss: {
+    plugins: {
+      tailwindcss: {},
+      autoprefixer: {},
+    },
+  },
+
   // Enable SSG
   ssr: false,
+
   // Enables the development server to be discoverable by other devices when running on iOS physical devices
   devServer: { 
     host: process.env.TAURI_DEV_HOST || 
     '172.20.10.7'
     // 'localhost'
   },
+
   vite: {
     // Better support for Tauri CLI output
     clearScreen: false,
@@ -21,6 +31,7 @@ export default defineNuxtConfig({
       strictPort: true,
     },
   },
+
   app: {
     head: {
       title: 'My Nuxt App', // Optional: set a title for your application
@@ -33,5 +44,8 @@ export default defineNuxtConfig({
         { src: 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest', async: true }, // Add your CDN link here
       ],
     },
-  }
+  },
+
+  compatibilityDate: '2024-10-19',
+  modules: ['@nuxtjs/tailwindcss']
 });
