@@ -31,4 +31,11 @@ impl<R: Runtime> Swift<R> {
       .run_mobile_plugin("ping", payload)
       .map_err(Into::into)
   }
+
+  pub fn graphics(&self, payload: PingRequest) -> crate::Result<PingResponse> {
+    self
+      .0
+      .run_mobile_plugin("graphics", payload)
+      .map_err(Into::into)
+  }
 }

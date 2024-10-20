@@ -16,6 +16,58 @@ Default permissions for the plugin
 <tr>
 <td>
 
+`swift:allow-get-gpu`
+
+</td>
+<td>
+
+Enables the get_gpu command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`swift:deny-get-gpu`
+
+</td>
+<td>
+
+Denies the get_gpu command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`swift:allow-graphics`
+
+</td>
+<td>
+
+Enables the graphics command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`swift:deny-graphics`
+
+</td>
+<td>
+
+Denies the graphics command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `swift:allow-ping`
 
 </td>

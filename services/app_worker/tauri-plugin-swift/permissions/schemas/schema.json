@@ -295,6 +295,26 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the get_gpu command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-gpu"
+        },
+        {
+          "description": "Denies the get_gpu command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-gpu"
+        },
+        {
+          "description": "Enables the graphics command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-graphics"
+        },
+        {
+          "description": "Denies the graphics command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-graphics"
+        },
+        {
           "description": "Enables the ping command without any pre-configured scope.",
           "type": "string",
           "const": "allow-ping"
