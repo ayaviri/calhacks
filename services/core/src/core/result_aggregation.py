@@ -1,3 +1,4 @@
+import base64
 from pydantic import BaseModel, NonNegativeInt
 from core.mq import connect_to_rabbitmq_server
 from core.utils import Timer
@@ -21,10 +22,12 @@ def aggregate_results(channel, method, properties, body: bytes):
         # 2) Load model shards into memory
         # 3) Merge shards using tensorflow
         # 4) Export merged model to .keras
-        pass
+        for index, subtask_result in enumerate(message.subtask_results):
+            with open(f"model{index}.keras", "wb") as file:
+                file.write(base64.b64decode(subtask_result.encoded_model_file_contents))
 
     with Timer("pushing aggregated result to remote file server"):
-        result = ResultMessage(file_url_model="remote_location")
+        result = ResultMessage(file_url_model="got the model")
 
     channel.basic_publish(
         exchange="", routing_key="result", body=result.model_dump_json()
