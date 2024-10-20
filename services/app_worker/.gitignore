@@ -1,7 +1,8 @@
 /src-tauri/target/
-/src-tauri/gen/schemas
+/src-tauri/gen/apple/
+/src-tauri/gen/schemas/
 
-/tauri-plugin-swift//.vs
+/tauri-plugin-swift/.vs
 /tauri-plugin-swift/.DS_Store
 /tauri-plugin-swift/.Thumbs.db
 /tauri-plugin-swift/*.sublime*
@@ -10,12 +11,12 @@
 /tauri-plugin-swift/package-lock.json
 /tauri-plugin-swift/.vscode/settings.json
 /tauri-plugin-swift/yarn.lock
-/tauri-plugin-swift//.tauri
-/tauri-plugin-swift//target
+/tauri-plugin-swift/.tauri/
+/tauri-plugin-swift/target/
 /tauri-plugin-swift/Cargo.lock
 /tauri-plugin-swift/node_modules/
-/tauri-plugin-swift/dist-js
-/tauri-plugin-swift/dist
+/tauri-plugin-swift/dist-js/
+/tauri-plugin-swift/dist/
 
-.nuxt
-node_modules
+.nuxt/
+node_modules/
