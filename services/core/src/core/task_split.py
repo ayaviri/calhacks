@@ -10,6 +10,7 @@ from core.schemas import (
     TaskSplitMessage,
     SubtaskMessage,
     TaskTable,
+    SubtaskTable,
 )
 
 
@@ -43,11 +44,8 @@ def split_task(channel, method, properties, body: bytes):
     with Timer("serialising subtasks into json"):
         serialised_subtasks: list[str] = [s.model_dump_json() for s in subtasks]
 
-    with Timer("publishing each subtask to queue"):
-        for subtask_message in serialised_subtasks:
-            channel.basic_publish(
-                exchange="", routing_key="subtask", body=subtask_message
-            )
+    with Timer("batch writing the subtasks to postgres"):
+        SubtaskTable.batch_submit(serialised_subtasks)
 
 
 def main():

@@ -1,9 +1,11 @@
 import base64
 import redis.asyncio as aioredis
 from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
 
-from core.utils import Timer, abort_on_failure
+from core.utils import Timer, abort_on_failure, execute_in_transaction
 from core.database import create_db_session_factory
 from core.schemas import (
     PostResultRequestBody,
@@ -11,6 +13,8 @@ from core.schemas import (
     SubtaskResult,
     ResultAggregationMessage,
     TaskTable,
+    SubtaskTable,
+    SubtaskRow,
 )
 from core.mq import connect_to_rabbitmq_server
 
@@ -105,6 +109,35 @@ async def get_task_state(task_id: str):
 # |  _|| |_| |  _ <    \ V  V /| |_| |  _ <| . \| |___|  _ <
 # |_|   \___/|_| \_\    \_/\_/  \___/|_| \_\_|\_\_____|_| \_\
 #
+
+
+@app.get("/subtask")
+async def check_for_available_subtask():
+    async def handler():
+        message: Optional[str] = None
+
+        def operation(session):
+            s: Optional[SubtaskRow] = SubtaskTable.get_oldest_unassigned_subtask(
+                session
+            )
+
+            if s is not None:
+                SubtaskTable.assign(session, s.id)
+                message = s.message
+
+        with Timer("claiming oldest unassigned task if one exists"):
+            with Session.begin() as session:
+                execute_in_transaction(session, operation)
+
+        return (
+            # NOTE: This assumes that the body of the received message is
+            # already a JSON formatted string
+            JSONResponse(content=message)
+            if message is not None
+            else JSONResponse(content="no subtask", status_code=204)
+        )
+
+    return await abort_on_failure(handler)
 
 
 @app.post("/result")

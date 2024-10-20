@@ -2,6 +2,15 @@ import time
 from fastapi.responses import JSONResponse
 
 
+def execute_in_transaction(session, operation):
+    try:
+        operation(session)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise e
+
+
 async def abort_on_failure(handler):
     try:
         return await handler()

@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, Integer, String, DateTime, select
+from sqlalchemy import Column, Integer, String, DateTime, select, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
 from typing import Optional
@@ -124,9 +124,16 @@ class TaskRow(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
-class TaskTable:
-    pass
+class SubtaskRow(Base):
+    __tablename__ = "subtask"
 
+    id = Column(String, primary_key=True, index=True)
+    is_assigned = Column(Boolean)
+    message = Column(String)  # JSON formatted string
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TaskTable:
     @staticmethod
     def write_task(session) -> str:
         task_id = str(uuid.uuid4())
@@ -148,3 +155,40 @@ class TaskTable:
             task_row.subtask_count = subtask_count
         else:
             raise Exception("Given task ID does not exist")
+
+
+class SubtaskTable:
+    @staticmethod
+    def get_oldest_unassigned_subtask(session) -> Optional[SubtaskRow]:
+        statement = (
+            select(SubtaskRow)
+            .where(not SubtaskRow.is_assigned)
+            .order_by(SubtaskRow.created_at)
+        )
+
+        return session.scalars(statement).first()
+
+    @staticmethod
+    def get_subtask(session, subtask_id: str) -> Optional[SubtaskRow]:
+        statement = select(SubtaskRow).where(SubtaskRow.id == subtask_id)
+
+        return session.scalars(statement).first()
+
+    @staticmethod
+    def assign(session, subtask_id: str):
+        subtask_row: Optional[SubtaskRow] = SubtaskTable.get_subtask(
+            session, subtask_id
+        )
+
+        if subtask_row:
+            subtask_row.is_assigned = True
+        else:
+            raise Exception("Given subtask ID does not exist")
+
+    @staticmethod
+    def batch_submit(session, subtask_messages: list[str]):
+        rows = [
+            SubtaskRow(id=str(uuid.uuid4()), is_assigned=False, message=m)
+            for m in subtask_messages
+        ]
+        session.add_all(rows)
