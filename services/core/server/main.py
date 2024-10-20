@@ -1,3 +1,4 @@
+import base64
 import redis.asyncio as aioredis
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -57,12 +58,14 @@ def shutdown():
 
 @app.post("/task")
 async def submit_task(
-    model: UploadFile = File(required=True),
-    dataset_name: str = Form(required=True)
+    model: UploadFile = File(required=True), dataset_name: str = Form(required=True)
 ):
     async def handler():
-        with Timer("reading file contents into memory"):
+        with Timer("reading file contents into memory and encoding it into base64"):
             model_file_contents = await model.read()
+            encoded_model_file_contents = base64.b64encode(model_file_contents).decode(
+                "utf-8"
+            )
 
         with Timer("creating task in database"):
             with Session.begin() as session:
@@ -70,6 +73,7 @@ async def submit_task(
 
         with Timer("sending files to task split queue"):
             message = TaskSplitMessage(
+                encoded_model_file_contents=encoded_model_file_contents,
                 model_file_contents=model_file_contents,
                 dataset_name=dataset_name,
                 task_id=task_id,
@@ -86,7 +90,8 @@ async def submit_task(
 @app.get("/task/{task_id}")
 async def get_task_state(task_id: str):
     def respond_with_result(channel, method, properties, body: bytes):
-        # NOTE: This assumes that the body is already a JSON formatted string
+        # NOTE: This assumes that the body of the received message is 
+        # already a JSON formatted string
         return JSONResponse(content=str(bytes))
 
     rabbitmq_channel.basic_consume(
@@ -130,7 +135,8 @@ async def post_subtask_result(r: PostResultRequestBody):
                 message = ResultAggregationMessage(
                     subtask_results=[
                         SubtaskResult(
-                            output_tensor=s.output_tensor, task_num=s.task_num
+                            encoded_model_file_contents=s.encoded_model_file_contents, 
+                            task_num=s.task_num
                         )
                         for s in subtasks
                     ]

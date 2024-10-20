@@ -9,7 +9,7 @@ class Result(BaseModel):
 
 
 class SubtaskResult(BaseModel):
-    output_tensor: list[float]
+    encoded_model_shard_file_contents: str
     task_num: NonNegativeInt
 
 
@@ -25,10 +25,13 @@ def aggregate_results(channel, method, properties, body: bytes):
 
     # 2) TODO: Aggregate results
     with Timer("aggregating result from each subtask into a single result"):
+        # 1) C
+        pass
+
+    with Timer("pushing aggregated result to remote file server"):
         result = Result(url="remote_location")
 
-    # 3) Publish message for aggregated result to queue
-    channel.basic_pubish(
+    channel.basic_publish(
         exchange="", routing_key="result", body=result.model_dump_json()
     )
 

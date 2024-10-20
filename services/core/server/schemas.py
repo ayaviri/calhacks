@@ -16,8 +16,9 @@ from pydantic import BaseModel, NonNegativeInt
 
 
 class PostResultRequestBody(BaseModel):
-    # TODO: Update this with the tensor type
-    output_tensor: list[float]
+    # A base64 encoded string of the binary data contained in a .keras file,
+    # representing a finetuned tensorflow model shard
+    encoded_model_shard_file_contents: str
     # Represents the order of this subtask result in the
     # collection of subtask results
     task_num: NonNegativeInt
@@ -48,7 +49,7 @@ class TaskSplitMessage(BaseModel):
 
 
 class SubtaskResult(BaseModel):
-    output_tensor: list[float]
+    encoded_model_shard_file_contents: str
     task_num: NonNegativeInt
 
 

@@ -5,30 +5,28 @@ from pydantic import BaseModel, NonNegativeInt, PositiveInt
 from database.schemas import TaskTable
 from worker.utils import connect_to_rabbitmq_server, create_db_session_factory, Timer
 
+# The message schema received by this worker, represents a model finetuning task
+class TaskSplitMessage(BaseModel):
+    # A base64 encoded string of the binary data contained in a .keras file, 
+    # representing a tensorflow model
+    encoded_model_file_contents: str
+    # The name of a dataset provided by tensorflow
+    dataset_name: str
+    # Represents the ID of the task from which this one is derived, shared by
+    # all subtasks of a given task
+    task_id: str
 
 # TODO: The information necessary for a worker to independently complete a
 # portion of the original task
 class Subtask(BaseModel):
-    model_file_contents: str
+    encoded_model_file_contents: str
     dataset_name: str
-    # Represents the ID of the task from which this one is derived, shared by
-    # all subtasks of a given task
     task_id: str
     # Represents the order in which this subtask belongs in the collection of
     # subtasks
     task_num: NonNegativeInt
     # Represents the number of subtasks the original task was divided into
     subtask_count: PositiveInt
-
-
-# The message schema received by this worker, represents a model finetuning task
-class TaskSplitMessage(BaseModel):
-    # A .keras file
-    model_file_contents: str
-    # The name of a dataset provided by tensorflow
-    dataset_name: str
-    task_id: str
-
 
 # Called when a task is submitted in by the core server in the form of a message.
 # Message body is contained in the _body_ parameter as a byte array
@@ -41,7 +39,7 @@ def split_task(channel, method, properties, body: bytes):
         available_workers = 4
         subtasks = [
             Subtask(
-                model_file_contents=message.model_file_contents
+                encoded_model_file_contents=message.encoded_model_file_contents
                 dataset_name=message.dataset_name,
                 task_id=message.task_id,
                 subtask_count=available_workers
