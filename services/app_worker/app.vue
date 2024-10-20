@@ -4,7 +4,7 @@ import { Stomp } from 'stompjs';
 const WebSocket = window.__TAURI__.websocket;
 
 const socket = new WebSocket('ws://localhost:15674/ws'); // Use RabbitMQ's WebSocket URL
-const client = Stomp.over(socket);
+// const client = Stomp.over(socket);
 
 // const REQUEST_ENDPOINT = 'amqp://localhost';
 
