@@ -3,7 +3,7 @@
 /services/app_worker/src-tauri/target/
 /services/app_worker/src-tauri/gen/schemas
 
-/services/app_worker/tauri-plugin-swift/.vs
+services/app_worker/tauri-plugin-swift/.vs
 /services/app_worker/tauri-plugin-swift/.DS_Store
 /services/app_worker/tauri-plugin-swift/.Thumbs.db
 /services/app_worker/tauri-plugin-swift/*.sublime*
@@ -18,6 +18,8 @@
 /services/app_worker/tauri-plugin-swift/node_modules/
 /services/app_worker/tauri-plugin-swift/dist-js
 /services/app_worker/tauri-plugin-swift/dist
-
 /services/app_worker/.nuxt
+/services/app_worker/.output
 /services/app_worker/node_modules
+services/app_worker/package-lock.json
+services/app_worker/src-tauri/Cargo.lock
