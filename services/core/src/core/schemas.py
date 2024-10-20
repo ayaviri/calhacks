@@ -159,11 +159,11 @@ class TaskTable:
 
 class SubtaskTable:
     @staticmethod
-    def get_oldest_unassigned_subtask(session) -> Optional[SubtaskRow]:
+    def get_oldest_unassigned_subtask(session, task_id: str) -> Optional[SubtaskRow]:
         statement = (
             select(SubtaskRow)
-            .where(not SubtaskRow.is_assigned)
-            .order_by(SubtaskRow.created_at)
+            .where(not SubtaskRow.is_assigned) # TODO: Once we can get the task ID from the worker, assert that here
+            .order_by(SubtaskRow.created_at.desc()) # TODO: Remove this once we can filter on task ID
         )
 
         return session.scalars(statement).first()

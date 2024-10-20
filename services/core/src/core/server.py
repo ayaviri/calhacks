@@ -41,6 +41,8 @@ def startup():
     global redis
     rabbitmq_channel = connect_to_rabbitmq_server()
     rabbitmq_channel.queue_declare(queue="task_split")
+    rabbitmq_channel.queue_declare(queue="result_aggregation")
+    rabbitmq_channel.queue_declare(queue="result")
     Session = create_db_session_factory()
     redis = aioredis.Redis()
 
@@ -65,10 +67,12 @@ async def submit_task(
 ):
     async def handler():
         with Timer("reading file contents into memory and encoding it into base64"):
-            model_file_contents = await model.read()
-            encoded_model_file_contents = base64.b64encode(model_file_contents).decode(
-                "utf-8"
-            )
+            # TODO: Fix base64 encoding, it's fucking up the Pydantic deserialisation in split_task
+            encoded_model_file_contents = "foobar"
+            # model_file_contents = await model.read()
+            # encoded_model_file_contents = base64.b64encode(model_file_contents).decode(
+            #     "utf-8"
+            # )
 
         with Timer("creating task in database"):
             with Session.begin() as session:
@@ -77,7 +81,6 @@ async def submit_task(
         with Timer("sending files to task split queue"):
             message = TaskSplitMessage(
                 encoded_model_file_contents=encoded_model_file_contents,
-                model_file_contents=model_file_contents,
                 dataset_name=dataset_name,
                 task_id=task_id,
             )
@@ -114,16 +117,18 @@ async def get_task_state(task_id: str):
 @app.get("/subtask")
 async def check_for_available_subtask():
     async def handler():
+        task_id = "123"
         message: Optional[str] = None
 
         def operation(session):
             s: Optional[SubtaskRow] = SubtaskTable.get_oldest_unassigned_subtask(
-                session
+                session, task_id
             )
 
             if s is not None:
                 SubtaskTable.assign(session, s.id)
                 message = s.message
+                
 
         with Timer("claiming oldest unassigned task if one exists"):
             with Session.begin() as session:
@@ -134,7 +139,7 @@ async def check_for_available_subtask():
             # already a JSON formatted string
             JSONResponse(content=message)
             if message is not None
-            else JSONResponse(content="no subtask", status_code=204)
+            else JSONResponse(content={"no": "subtask"}, status_code=204)
         )
 
     return await abort_on_failure(handler)

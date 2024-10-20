@@ -5,11 +5,32 @@
   "windows": [
     "main"
   ],
+  "plugins": {
+    "fs": {
+      "scope": ["$DOCUMENT/*"]
+    }
+  },
   "permissions": [
     "core:default",
     "swift:allow-ping",
     "swift:allow-graphics",
     "swift:default",
-    "websocket:default"
+    "websocket:default",
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "$DOCUMENT/**" }]
+    },
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [{ "path": "$DOCUMENT/**" }]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "$DOCUMENT/**" }]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "$DOCUMENT/**" }]
+    }
   ]
 }

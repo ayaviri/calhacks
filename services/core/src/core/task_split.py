@@ -18,19 +18,20 @@ from core.schemas import (
 # Message body is contained in the _body_ parameter as a byte array
 def split_task(channel, method, properties, body: bytes):
     with Timer("deserialising message body from json"):
-        message = TaskSplitMessage.model_validate_json(str(body))
+        message = TaskSplitMessage.model_validate_json(body.decode("utf-8"))
 
     # 2) TODO: Split into subtasks according to available workers
     with Timer("splitting into subtasks according to available workers"):
-        available_workers = 4
+        available_workers = 1
         subtasks = [
             SubtaskMessage(
                 encoded_model_file_contents=message.encoded_model_file_contents,
                 dataset_name=message.dataset_name,
                 task_id=message.task_id,
+                task_num=index,
                 subtask_count=available_workers,
             )
-            for _ in range(available_workers)
+            for index in range(available_workers)
         ]
 
     # NOTE: Ideally, there is some retry mechanism here since most of the
@@ -45,7 +46,8 @@ def split_task(channel, method, properties, body: bytes):
         serialised_subtasks: list[str] = [s.model_dump_json() for s in subtasks]
 
     with Timer("batch writing the subtasks to postgres"):
-        SubtaskTable.batch_submit(serialised_subtasks)
+        with Session.begin() as session:
+            SubtaskTable.batch_submit(session, serialised_subtasks)
 
 
 def main():

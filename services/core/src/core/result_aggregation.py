@@ -14,7 +14,7 @@ from core.schemas import (
 
 def aggregate_results(channel, method, properties, body: bytes):
     with Timer("deserialising message body from json"):
-        message = ResultAggregationMessage.model_validate_json(str(body))
+        message = ResultAggregationMessage.model_validate_json(body.decode("utf-8"))
 
     # 2) TODO: Aggregate results
     with Timer("aggregating result from each subtask into a single result"):
