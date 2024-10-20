@@ -48,11 +48,11 @@ const requestToBeWorker = async (_) => {
     <div class="w-full flex flex-col items-center">
       <p class="text-white text-2xl font-mono px-10 text-center">
         {{
-          isWorker === "active"
+          isWorker === "inactive"
             ? "Let's not make your phone go to waste."
             : isWorker === "loading"
             ? "Getting ready..."
-            : "Let's get processing!"
+            : "Now processing!"
         }}
       </p>
 
