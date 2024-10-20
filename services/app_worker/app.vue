@@ -3,17 +3,18 @@ import { Stomp } from 'stompjs';
 // worker: a box falls into their thing, a gear spins, then its wrapped into a present background turns light green
 // client: sends a rocket, and then gets dropped a box every time
 
-// const WebSocket = window.__TAURI__.websocket;
-
-// const socket = new WebSocket('ws://localhost:15674/ws'); // Use RabbitMQ's WebSocket URL
-// const client = Stomp.over(socket);
-
-// const REQUEST_ENDPOINT = 'amqp://localhost';
-
 // STATES: "inactive", "loading", "active"
 const isWorker = useState("isWorker", () => "inactive");
 const requestToBeWorker = async (_) => {
   isWorker.value = "loading";
+
+  const WebSocket = window.__TAURI__.websocket;
+
+  const socket = new WebSocket('ws://localhost:15674/ws'); // Use RabbitMQ's WebSocket URL
+  const client = Stomp.over(socket);
+
+  const REQUEST_ENDPOINT = 'amqp://localhost';
+  
   // 1) Request the core server to add this phone to the network
   // response = null
   // rabbitmqUrl = (await response.json()).rabbitmq_url
