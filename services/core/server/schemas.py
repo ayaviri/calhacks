@@ -43,7 +43,7 @@ class PostResultRequestBody(BaseModel):
 
 
 class TaskSplitMessage(BaseModel):
-    model_file_contents: str
+    encoded_model_file_contents: str
     dataset_file_contents: str
     task_id: str
 

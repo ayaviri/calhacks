@@ -11,9 +11,9 @@ from server.schemas import (
 
 from database.schemas import TaskTable
 from utils.timer import Timer
-from web_server.database import create_db_session_factory
-from web_server.utils import abort_on_failure
-from web_server.mq import connect_to_rabbitmq_server
+from server.database import create_db_session_factory
+from server.utils import abort_on_failure
+from server.mq import connect_to_rabbitmq_server
 
 app = FastAPI()
 origins = ["*"]

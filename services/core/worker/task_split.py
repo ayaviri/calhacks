@@ -2,8 +2,8 @@ import time
 import requests
 from typing import Any
 from pydantic import BaseModel, NonNegativeInt, PositiveInt
-from database.schemas import TaskTable
-from worker.utils import connect_to_rabbitmq_server, create_db_session_factory, Timer
+# from database.schemas import TaskTable
+from worker.utils import connect_to_rabbitmq_server, create_db_session_factory, Timer, TaskTable
 
 # The message schema received by this worker, represents a model finetuning task
 class TaskSplitMessage(BaseModel):
@@ -39,7 +39,7 @@ def split_task(channel, method, properties, body: bytes):
         available_workers = 4
         subtasks = [
             Subtask(
-                encoded_model_file_contents=message.encoded_model_file_contents
+                encoded_model_file_contents=message.encoded_model_file_contents,
                 dataset_name=message.dataset_name,
                 task_id=message.task_id,
                 subtask_count=available_workers

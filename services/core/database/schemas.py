@@ -15,7 +15,6 @@ class TaskRow(Base):
     subtask_count = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-
 class TaskTable:
     pass
 
@@ -40,18 +39,3 @@ class TaskTable:
             task_row.subtask_count = subtask_count
         else:
             raise Exception("Given task ID does not exist")
-
-    @staticmethod
-    def update_task(user_id: UserID, task_id: str, new_state: str):
-        with Session.begin() as session:
-            task_row: Optional[TaskRow] = (
-                session.query(TaskRow)
-                .filter(and_(TaskRow.user_id == user_id, TaskRow.task_id == task_id))
-                .first()
-            )
-
-            if task_row:
-                task_row.state = new_state  # type: ignore
-                task_row.completed_at = datetime.now()  # type: ignore
-            else:
-                raise Exception("There is no task with the given ID")
