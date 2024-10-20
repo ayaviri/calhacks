@@ -1,9 +1,18 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models
 import numpy as np
+import json
 
 fashion_mnist = tf.keras.datasets.fashion_mnist
 (_, _), (x_test, y_test) = fashion_mnist.load_data()
+
+data = {
+    'x_test': x_test.tolist(),
+    'y_test': y_test.tolist()
+}
+
+with open('dataset.json', 'w') as f:
+    json.dump(data, f)
 
 def preprocess_images(images, labels):
     print("Processing images with shape:", images.shape)
@@ -22,11 +31,7 @@ x_test, y_test = preprocess_images(x_test, y_test)
 x_test_rgb = np.repeat(x_test, 3, axis=-1)
 
 
-model = tf.keras.applications.MobileNetV2(
-    input_shape=(224, 224, 3),
-    include_top=True,
-    weights='imagenet'
-)
+model = tf.keras.models.load_model(r"C:\Users\tiahi\phoneinference\calhacks\workers\saved_model.keras")
 
 model_id = id(model)
 num_layers = len(model.layers)
