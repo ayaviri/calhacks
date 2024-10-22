@@ -15,7 +15,7 @@ export default defineNuxtConfig({
   // Enables the development server to be discoverable by other devices when running on iOS physical devices
   devServer: { 
     host: process.env.TAURI_DEV_HOST || 
-    // '172.20.10.7'
+    // '10.66.37.101'
     'localhost'
   },
 
@@ -41,7 +41,7 @@ export default defineNuxtConfig({
         { hid: 'description', name: 'description', content: 'My Nuxt.js project' },
       ],
       script: [
-        { src: 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest', async: true }, // Add your CDN link here
+        { src: 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js', async: true }, // Add your CDN link here
       ],
     },
   },

@@ -1,7 +1,7 @@
 import base64
 import redis.asyncio as aioredis
 from fastapi import FastAPI, File, UploadFile, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
@@ -124,6 +124,8 @@ async def check_for_available_subtask():
             s: Optional[SubtaskRow] = SubtaskTable.get_oldest_unassigned_subtask(
                 session, task_id
             )
+            
+            
 
             if s is not None:
                 SubtaskTable.assign(session, s.id)
@@ -133,13 +135,14 @@ async def check_for_available_subtask():
         with Timer("claiming oldest unassigned task if one exists"):
             with Session.begin() as session:
                 execute_in_transaction(session, operation)
+                
 
         return (
             # NOTE: This assumes that the body of the received message is
             # already a JSON formatted string
             JSONResponse(content=message)
             if message is not None
-            else JSONResponse(content={"no": "subtask"}, status_code=204)
+            else Response(status_code=204)
         )
 
     return await abort_on_failure(handler)
